@@ -1,0 +1,9 @@
+connected: ('127.0.0.1', 52332)
+GET / HTTP/1.1
+Host: localhost:9090
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Cookie: csrftoken=bbud7RfeTMs8oEbzROTUL9tehS3oZ9Xh; djdt=hide; djdtIntranetVersion=on; djdttop=130; sessionid=25qoqewxoxb8vwkxevyudhvagjtxl6ij
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/601.4.4 (KHTML, like Gecko) Version/9.0.3 Safari/601.4.4
+Accept-Language: ru
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
