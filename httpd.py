@@ -6,7 +6,7 @@ import sys
 import time
 
 from utils import determinate_content_type, make_40X_resopnse_header, read_file, make_response_header, http_parser, \
-    change_base_dir, get_base_dir, get_ncpu
+    change_base_dir, get_base_dir, get_ncpu, decode_url
 import threading
 
 is_live = True
@@ -43,8 +43,13 @@ def worker(index, event):
                 data += new_data
             else:
                 break
+        print "----------CLEARDATA---------"
+        print data
+        data = decode_url(data)
+        print "------DATA--------"
         print data
         method, path, http_version = http_parser(data)
+        print "------------PARAMETERS----------"
         print method, path, http_version
         if not method or not path or not http_version:
             try:
@@ -76,7 +81,7 @@ def worker(index, event):
                     data = header
                     conn.send(data)
             except BaseException as e:
-                print "404 BASE"
+                print "404 BASE in thread-{}".format(index)
                 print path
                 print e
         try:

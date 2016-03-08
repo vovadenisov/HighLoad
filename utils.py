@@ -1,5 +1,6 @@
 import re
 import time
+import urllib
 
 BASE_DIR = ''
 
@@ -38,6 +39,11 @@ def change_base_dir(base_dir):
     BASE_DIR = base_dir
 
 
+def decode_url(url):
+    return urllib.unquote(url).decode('utf8')
+
+
+
 def http_parser(request):
     # pattern = '(GET|HEAD)\s+(([/\w\s\.$-]+)(\.([a-zA-Z\s]+))?)(\?([\w=&-]+))?\s+HTTP/([.0-9]+)'
     pattern = '(GET|HEAD)\s+([/\w\s\.$-]+)(\?([\w=&-]+))?\s+HTTP/([.0-9]+)'
@@ -54,6 +60,8 @@ def read_file(path):
     if '..' in path:
         raise IOError
     path_ = get_base_dir() + path
+    # path_ = re.sub(" ", "\ ", path_)
+    print path_
     file = open(path_, 'r')
     data = file.read()
     length = data.__len__()
