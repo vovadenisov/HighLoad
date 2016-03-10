@@ -5,11 +5,11 @@ from _socket import SOL_SOCKET, SO_REUSEADDR
 import sys
 import time
 
-from utils import determinate_content_type, make_40X_resopnse_header, read_file, make_response_header, http_parser, \
-    change_base_dir, get_base_dir, get_ncpu, decode_url
-import threading
+from multiprocessing import freeze_support, Process
 
-is_live = True
+from utils import determinate_content_type, make_40X_resopnse_header, read_file, make_response_header, http_parser, \
+    get_ncpu, decode_url, set_ncpu
+import threading
 
 
 def check_data_for_thread(index):
@@ -22,15 +22,8 @@ def set_data_for_thread(index, data):
     thread_data_dict[index] = data
 
 
-def get_is_live():
-    global is_live
-    return is_live
-
-
-def worker(index, event):
-    is_live = get_is_live()
-    while is_live:
-        is_live = get_is_live()
+def worker(index, event, base_url):
+    while True:
         print "thread-{} start".format(index)
         event.wait()
         _time = time.time()
@@ -43,14 +36,8 @@ def worker(index, event):
                 data += new_data
             else:
                 break
-        print "----------CLEARDATA---------"
-        print data
         data = decode_url(data)
-        print "------DATA--------"
-        print data
         method, path, http_version = http_parser(data)
-        print "------------PARAMETERS----------"
-        print method, path, http_version
         if not method or not path or not http_version:
             try:
                 conn.send(make_40X_resopnse_header("405 Bad Gateway"))
@@ -64,9 +51,12 @@ def worker(index, event):
             try:
                 if not is_data_type_determinate:
                     path += 'index.html'
-                data, length = read_file(path)
+                data, length = read_file(path, base_url)
             except IOError:
-                conn.send(make_40X_resopnse_header("404 Not Found"))
+                if is_data_type_determinate:
+                    conn.send(make_40X_resopnse_header("404 Not Found"))
+                else:
+                    conn.send(make_40X_resopnse_header("403 Forbidden"))
                 conn.close()
                 set_data_for_thread(index, None)
                 event.clear()
@@ -95,6 +85,7 @@ def worker(index, event):
 thread_data_dict = list()
 thread_list = list()
 events_list = list()
+base_dir = None
 
 if __name__ == "__main__":
     _r_flag = False
@@ -102,12 +93,12 @@ if __name__ == "__main__":
     for param in sys.argv:
         if _r_flag:
             print param
-            change_base_dir(param)
+            base_dir = param
             # проверить, что существует директория
             _r_flag = False
         if _c_flag:
             try:
-                NCPU = int(param)
+                set_ncpu(int(param))
             except Exception as e:
                 print "-c parameter should be int"
                 raise Exception
@@ -119,41 +110,54 @@ if __name__ == "__main__":
             _c_flag = True
             continue
 
-if not get_base_dir():
+if not base_dir:
     raise Exception
 
-print "BASE_DIR:", get_base_dir()
+print "BASE_DIR:", base_dir
 print "NCPU:", get_ncpu()
-try:
-    for thread_index in range(0, 10):
-        _event = threading.Event()
-        events_list.append(_event)
-        thread_data_dict.append(False)
-        thread_list.append(threading.Thread(target=worker, args=(thread_index, _event)))
 
-    for thread in thread_list:
-        thread.start()
 
-    while True:
-        try:
-            print "server_start"
-            sock = socket.socket()
-            sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-            sock.bind(('', 80))
-            sock.listen(1)
-            conn, addr = sock.accept()
-            for i in range(0, thread_data_dict.__len__()):
-                if not thread_data_dict[i]:
-                    set_data_for_thread(i,conn)
-                    events_list[i].set()
-                    break
-        except BaseException as e:
-            print 'BaseException'
-            print e
+def process(base_url, process_index, sock):
+    print "process_start-{}".format(process_index)
+    try:
+        for thread_index in range(0, 10):
+            _event = threading.Event()
+            events_list.append(_event)
+            thread_data_dict.append(False)
+            thread_list.append(threading.Thread(target=worker, args=(thread_index, _event, base_url)))
 
-    is_live = False
+        for thread in thread_list:
+            thread.start()
+        print "thread_start in process-{}".format(process_index)
+        while True:
+            try:
+                print "server_start"
+                conn, addr = sock.accept()
+                print "socket_accept in process-{}".format(process_index)
+                for i in range(0, thread_data_dict.__len__()):
+                    if not thread_data_dict[i]:
+                        set_data_for_thread(i,conn)
+                        events_list[i].set()
+                        break
+            except BaseException as e:
+                print 'BaseException'
+                print e
 
-    for thread in thread_list:
-        thread.join()
-except Exception as e:
-    print e
+        for thread in thread_list:
+            thread.join()
+    except Exception as e:
+        print e
+
+if __name__ == "__main__":
+    freeze_support()
+    process_list = []
+    sock = socket.socket()
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind(('', 80))
+    sock.listen(1)
+    for index in range(0, get_ncpu()):
+        process_list.append(Process(target=process, args=(base_dir, index, sock)))
+    for index in range(0, get_ncpu()):
+        process_list[index].start()
+    for index in range(0, get_ncpu()):
+        process_list[index].join()

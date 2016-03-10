@@ -2,8 +2,6 @@ import re
 import time
 import urllib
 
-BASE_DIR = ''
-
 NCPU = 1
 
 CONTENT_TYPES = {
@@ -29,14 +27,9 @@ def get_ncpu():
     return NCPU
 
 
-def get_base_dir():
-    global BASE_DIR
-    return BASE_DIR
-
-
-def change_base_dir(base_dir):
-    global BASE_DIR
-    BASE_DIR = base_dir
+def set_ncpu(count):
+    global NCPU
+    NCPU = count
 
 
 def decode_url(url):
@@ -56,12 +49,10 @@ def http_parser(request):
     return method, path, http_version
 
 
-def read_file(path):
+def read_file(path, base_url):
     if '..' in path:
         raise IOError
-    path_ = get_base_dir() + path
-    # path_ = re.sub(" ", "\ ", path_)
-    print path_
+    path_ = base_url + path
     file = open(path_, 'r')
     data = file.read()
     length = data.__len__()
