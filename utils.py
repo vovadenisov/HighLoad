@@ -50,7 +50,7 @@ def http_parser(request):
 
 
 def read_file(path, base_url):
-    if '..' in path:
+    if '../' in path:
         raise IOError
     path_ = base_url + path
     file = open(path_, 'r')
